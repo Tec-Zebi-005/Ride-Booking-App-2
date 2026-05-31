@@ -1,0 +1,131 @@
+-- Drop and recreate database
+USE master;
+GO
+DROP DATABASE IF EXISTS RideFlowDB;
+GO
+CREATE DATABASE RideFlowDB;
+GO
+USE RideFlowDB;
+GO
+
+-- Users Table
+CREATE TABLE Users (
+    UserID       INT IDENTITY(1,1) PRIMARY KEY,
+    Username     VARCHAR(50)  NOT NULL UNIQUE,
+    PasswordHash VARCHAR(255) NOT NULL,
+    Email        VARCHAR(100) NOT NULL UNIQUE,
+    Phone        VARCHAR(20),
+    Role         VARCHAR(10)  NOT NULL CHECK (Role IN ('Passenger', 'Driver')),
+    CreatedAt    DATETIME     DEFAULT GETDATE()
+);
+GO
+
+-- Passengers Table
+CREATE TABLE Passengers (
+    PassengerID INT IDENTITY(1,1) PRIMARY KEY,
+    UserID      INT NOT NULL UNIQUE,
+    Username    VARCHAR(50) NOT NULL,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
+);
+GO
+
+-- Drivers Table
+CREATE TABLE Drivers (
+    DriverID      INT IDENTITY(1,1) PRIMARY KEY,
+    UserID        INT NOT NULL UNIQUE,
+    Username      VARCHAR(50) NOT NULL,
+    LicenseNumber VARCHAR(50) NOT NULL UNIQUE,
+    VehicleType   VARCHAR(30) NOT NULL CHECK (VehicleType IN (
+                      'Car without AC', 'Car with AC', 'Premium', 'Bike')),
+    IsAvailable   BIT DEFAULT 1,
+    Rating        DECIMAL(3,2) DEFAULT 5.00,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
+);
+GO
+
+-- Ride Requests Table
+CREATE TABLE ride_requests (
+    id                 INT IDENTITY(1,1) PRIMARY KEY,
+    passenger_username VARCHAR(50)  NOT NULL,
+    pickup_location    VARCHAR(255) NOT NULL,
+    dropoff_location   VARCHAR(255) NOT NULL,
+    vehicle_type       VARCHAR(30)  NOT NULL,
+    fare               DECIMAL(10,2),
+    status             VARCHAR(20)  DEFAULT 'PENDING',
+    driver_username    VARCHAR(50),
+    request_time       DATETIME     DEFAULT GETDATE()
+);
+GO
+CREATE TABLE feedback (
+    feedback_id INT PRIMARY KEY IDENTITY(1,1),
+
+    ride_id INT NOT NULL,
+    passenger_username VARCHAR(100) NOT NULL,
+    driver_username VARCHAR(100) NOT NULL,
+
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+
+    comments VARCHAR(500),
+
+    feedback_date DATETIME DEFAULT GETDATE(),
+
+    CONSTRAINT FK_Feedback_Ride
+    FOREIGN KEY (ride_id)
+    REFERENCES ride_requests(id)
+    ON DELETE CASCADE
+);
+
+
+
+-- View: Passengers with full details
+CREATE VIEW PassengerDetails AS
+SELECT
+    p.PassengerID,
+    p.Username,
+    u.Email,
+    u.Phone,
+    u.CreatedAt,
+    COUNT(r.id) AS TotalRides
+FROM Passengers p
+JOIN Users u ON p.UserID = u.UserID
+LEFT JOIN ride_requests r ON r.passenger_username = p.Username
+GROUP BY p.PassengerID, p.Username, u.Email, u.Phone, u.CreatedAt;
+GO
+
+-- View: Drivers with full details
+CREATE VIEW DriverDetails AS
+SELECT
+    d.DriverID,
+    d.Username,
+    u.Email,
+    u.Phone,
+    d.LicenseNumber,
+    d.VehicleType,
+    d.IsAvailable,
+    d.Rating,
+    COUNT(r.id) AS TotalRidesCompleted
+FROM Drivers d
+JOIN Users u ON d.UserID = u.UserID
+LEFT JOIN ride_requests r ON r.driver_username = d.Username
+    AND r.status = 'FINISHED'
+GROUP BY d.DriverID, d.Username, u.Email, u.Phone,
+         d.LicenseNumber, d.VehicleType, d.IsAvailable, d.Rating;
+GO
+
+
+USE RideFlowDB;
+
+-- See passengers with username
+SELECT * FROM Passengers;
+
+-- See full passenger details
+SELECT * FROM PassengerDetails;
+
+-- See full driver details
+SELECT * FROM DriverDetails;
+
+SELECT * FROM ride_requests;
+
+SELECT * FROM feedback;
+
+
