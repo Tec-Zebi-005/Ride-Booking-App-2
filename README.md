@@ -8,7 +8,6 @@ RideFlow is a desktop ride-booking application built with **Java Swing** and **S
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
 - [Database Setup](#database-setup)
 - [How to Run](#how-to-run)
 - [How It Works](#how-it-works)
